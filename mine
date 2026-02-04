@@ -1,0 +1,1851 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Minecraft HTML - Extended Edition</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            overflow: hidden; 
+            background: #1a1a2e;
+            font-family: 'Segoe UI', sans-serif;
+            touch-action: none;
+        }
+        #game-container { 
+            width: 100vw; 
+            height: 100vh; 
+            position: relative;
+        }
+        canvas { display: block; }
+        
+        #crosshair {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 24px;
+            height: 24px;
+            pointer-events: none;
+            z-index: 100;
+        }
+        #crosshair::before, #crosshair::after {
+            content: '';
+            position: absolute;
+            background: white;
+        }
+        #crosshair::before {
+            width: 2px;
+            height: 16px;
+            top: 4px;
+            left: 11px;
+        }
+        #crosshair::after {
+            width: 16px;
+            height: 2px;
+            top: 11px;
+            left: 4px;
+        }
+        
+        #hotbar {
+            position: fixed;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 2px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 5px;
+            border-radius: 8px;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            z-index: 100;
+        }
+        .hotbar-slot {
+            width: 40px;
+            height: 40px;
+            background: rgba(139, 139, 139, 0.5);
+            border: 2px solid #373737;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .hotbar-slot.selected {
+            border-color: #fff;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+            transform: scale(1.1);
+        }
+        .slot-color {
+            width: 28px;
+            height: 28px;
+            border-radius: 2px;
+        }
+        .hotbar-slot .slot-number {
+            position: absolute;
+            top: 1px;
+            left: 3px;
+            font-size: 9px;
+            color: white;
+            text-shadow: 1px 1px 1px black;
+        }
+        
+        #info-panel {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 12px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 8px 12px;
+            border-radius: 8px;
+            z-index: 100;
+            line-height: 1.5;
+        }
+        
+        #instructions {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 30px;
+            border-radius: 16px;
+            text-align: center;
+            z-index: 200;
+            max-width: 90%;
+            width: 350px;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+        #instructions h1 {
+            font-size: 24px;
+            margin-bottom: 15px;
+            color: #4ade80;
+        }
+        #instructions p {
+            margin: 8px 0;
+            font-size: 13px;
+            color: #ccc;
+        }
+        #instructions button {
+            margin-top: 15px;
+            padding: 12px 30px;
+            font-size: 16px;
+            background: linear-gradient(180deg, #4ade80, #22c55e);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #1a1a2e;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 300;
+            color: white;
+        }
+        #loading h2 {
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+        #loading-bar {
+            width: 250px;
+            height: 16px;
+            background: #333;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        #loading-progress {
+            height: 100%;
+            background: linear-gradient(90deg, #4ade80, #22c55e);
+            width: 0%;
+            transition: width 0.3s;
+        }
+        #loading-text {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #888;
+        }
+        
+        /* モバイル用コントロール */
+        #mobile-controls {
+            display: none;
+            position: fixed;
+            z-index: 150;
+        }
+        
+        #joystick-area {
+            position: fixed;
+            left: 20px;
+            bottom: 80px;
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+        #joystick-thumb {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        #action-buttons {
+            position: fixed;
+            right: 20px;
+            bottom: 80px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .action-btn {
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        .action-btn:active {
+            background: rgba(255, 255, 255, 0.4);
+        }
+        
+        #jump-btn {
+            position: fixed;
+            right: 100px;
+            bottom: 80px;
+            width: 70px;
+            height: 70px;
+            background: rgba(100, 200, 255, 0.3);
+            border: 2px solid rgba(100, 200, 255, 0.5);
+            border-radius: 50%;
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        
+        #fly-btn {
+            position: fixed;
+            right: 100px;
+            bottom: 160px;
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 200, 100, 0.3);
+            border: 2px solid rgba(255, 200, 100, 0.5);
+            border-radius: 50%;
+            color: white;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        
+        @media (max-width: 768px) {
+            #mobile-controls { display: block; }
+            #hotbar { bottom: 5px; }
+            .hotbar-slot { width: 35px; height: 35px; }
+            .slot-color { width: 24px; height: 24px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading">
+        <h2>🌍 ワールド生成中...</h2>
+        <div id="loading-bar">
+            <div id="loading-progress"></div>
+        </div>
+        <div id="loading-text">初期化中...</div>
+    </div>
+
+    <div id="game-container">
+        <div id="crosshair"></div>
+        
+        <div id="info-panel">
+            <div>座標: <span id="coords">0, 0, 0</span></div>
+            <div>FPS: <span id="fps">0</span></div>
+            <div>モード: <span id="mode">通常</span></div>
+            <div><span id="debug-info">-</span></div>
+        </div>
+        
+        <div id="hotbar"></div>
+        
+        <div id="mobile-controls">
+            <div id="joystick-area">
+                <div id="joystick-thumb"></div>
+            </div>
+            <div id="action-buttons">
+                <div class="action-btn" id="break-btn">破壊</div>
+                <div class="action-btn" id="place-btn">設置</div>
+            </div>
+            <div class="action-btn" id="jump-btn">JUMP</div>
+            <div class="action-btn" id="fly-btn">FLY</div>
+        </div>
+        
+        <div id="instructions">
+            <h1>🎮 Minecraft HTML</h1>
+            <p>PC: WASD移動 / マウスで視点</p>
+            <p>モバイル: 左で移動 / 右で視点</p>
+            <p>破壊・設置ボタンでブロック操作</p>
+            <button id="start-btn">タップしてスタート</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+    (function() {
+        'use strict';
+        
+        // ==================== 定数 ====================
+        var WORLD_SIZE_X = 64;
+        var WORLD_SIZE_Y = 48;
+        var WORLD_SIZE_Z = 64;
+        var WATER_LEVEL = 15;
+        var GROUND_LEVEL = 18;
+        
+        // ブロックタイプ
+        var BLOCKS = {
+            AIR: 0,
+            GRASS: 1,
+            DIRT: 2,
+            STONE: 3,
+            WATER: 4,
+            WOOD: 5,
+            LEAVES: 6,
+            SAND: 7,
+            COAL_ORE: 8,
+            IRON_ORE: 9,
+            GOLD_ORE: 10,
+            DIAMOND_ORE: 11,
+            COBBLESTONE: 12,
+            PLANKS: 13,
+            GLASS: 14,
+            BRICK: 15,
+            FLOWER_RED: 16,
+            FLOWER_YELLOW: 17,
+            TALL_GRASS: 18,
+            GRAVEL: 19
+        };
+        
+        var TRANSPARENT_BLOCKS = [BLOCKS.AIR, BLOCKS.WATER, BLOCKS.LEAVES, BLOCKS.GLASS, BLOCKS.FLOWER_RED, BLOCKS.FLOWER_YELLOW, BLOCKS.TALL_GRASS];
+        var NON_SOLID_BLOCKS = [BLOCKS.AIR, BLOCKS.WATER, BLOCKS.FLOWER_RED, BLOCKS.FLOWER_YELLOW, BLOCKS.TALL_GRASS];
+        
+        var HOTBAR_ITEMS = [
+            BLOCKS.GRASS, BLOCKS.DIRT, BLOCKS.STONE, BLOCKS.WOOD, 
+            BLOCKS.PLANKS, BLOCKS.COBBLESTONE, BLOCKS.GLASS, BLOCKS.BRICK, BLOCKS.SAND
+        ];
+        
+        // ==================== グローバル変数 ====================
+        var scene, camera, renderer;
+        var world = {};
+        var meshes = {};
+        var selectedSlot = 0;
+        var isFlying = false;
+        var velocity = {x: 0, y: 0, z: 0};
+        var isPlaying = false;
+        var particles = [];
+        var mobs = [];
+        var lastTime = performance.now();
+        var frameCount = 0;
+        var fps = 0;
+        var isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        
+        var keys = {
+            forward: false,
+            backward: false,
+            left: false,
+            right: false,
+            jump: false
+        };
+        
+        var pitch = 0;
+        var yaw = 0;
+        
+        var joystickActive = false;
+        var joystickStart = {x: 0, y: 0};
+        var cameraTouch = null;
+        
+        // ==================== パーリンノイズ ====================
+        var permutation = [];
+        var seed = 12345;
+        
+        function initNoise() {
+            var p = [];
+            for (var i = 0; i < 256; i++) p[i] = i;
+            for (var i = 255; i > 0; i--) {
+                seed = (seed * 9301 + 49297) % 233280;
+                var j = Math.floor((seed / 233280) * (i + 1));
+                var tmp = p[i];
+                p[i] = p[j];
+                p[j] = tmp;
+            }
+            for (var i = 0; i < 512; i++) permutation[i] = p[i & 255];
+        }
+        
+        function fade(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
+        function lerp(a, b, t) { return a + t * (b - a); }
+        
+        function grad(hash, x, y) {
+            var h = hash & 3;
+            var u = h < 2 ? x : y;
+            var v = h < 2 ? y : x;
+            return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v);
+        }
+        
+        function noise2D(x, y) {
+            var X = Math.floor(x) & 255;
+            var Y = Math.floor(y) & 255;
+            x -= Math.floor(x);
+            y -= Math.floor(y);
+            var u = fade(x);
+            var v = fade(y);
+            var A = permutation[X] + Y;
+            var B = permutation[X + 1] + Y;
+            return lerp(
+                lerp(grad(permutation[A], x, y), grad(permutation[B], x - 1, y), u),
+                lerp(grad(permutation[A + 1], x, y - 1), grad(permutation[B + 1], x - 1, y - 1), u),
+                v
+            );
+        }
+        
+        function octaveNoise(x, y, octaves, persistence) {
+            var total = 0, frequency = 1, amplitude = 1, maxValue = 0;
+            for (var i = 0; i < octaves; i++) {
+                total += noise2D(x * frequency, y * frequency) * amplitude;
+                maxValue += amplitude;
+                amplitude *= persistence;
+                frequency *= 2;
+            }
+            return total / maxValue;
+        }
+        
+        // ==================== テクスチャ生成 ====================
+        var textures = {};
+        var materials = {};
+        
+        function createTexture(colorFunc) {
+            var canvas = document.createElement('canvas');
+            canvas.width = 16;
+            canvas.height = 16;
+            var ctx = canvas.getContext('2d');
+            var imageData = ctx.createImageData(16, 16);
+            
+            for (var y = 0; y < 16; y++) {
+                for (var x = 0; x < 16; x++) {
+                    var color = colorFunc(x, y);
+                    var i = (y * 16 + x) * 4;
+                    imageData.data[i] = color[0];
+                    imageData.data[i + 1] = color[1];
+                    imageData.data[i + 2] = color[2];
+                    imageData.data[i + 3] = color[3] !== undefined ? color[3] : 255;
+                }
+            }
+            ctx.putImageData(imageData, 0, 0);
+            
+            var texture = new THREE.CanvasTexture(canvas);
+            texture.magFilter = THREE.NearestFilter;
+            texture.minFilter = THREE.NearestFilter;
+            return texture;
+        }
+        
+        function initTextures() {
+            textures.grassTop = createTexture(function(x, y) {
+                var n = Math.random() * 30;
+                return [60 + n, 140 + n, 40 + n];
+            });
+            
+            textures.grassSide = createTexture(function(x, y) {
+                if (y < 4) {
+                    var n = Math.random() * 30;
+                    return [60 + n, 140 + n, 40 + n];
+                }
+                var n = Math.random() * 20;
+                return [139 + n, 90 + n, 43 + n];
+            });
+            
+            textures.dirt = createTexture(function(x, y) {
+                var n = Math.random() * 20;
+                return [139 + n, 90 + n, 43 + n];
+            });
+            
+            textures.stone = createTexture(function(x, y) {
+                var n = Math.random() * 30;
+                return [120 + n, 120 + n, 120 + n];
+            });
+            
+            textures.water = createTexture(function(x, y) {
+                var n = Math.random() * 20;
+                return [30 + n, 100 + n, 200 + n, 180];
+            });
+            
+            textures.woodSide = createTexture(function(x, y) {
+                var stripe = (y % 4 < 2) ? 20 : 0;
+                var n = Math.random() * 15;
+                return [101 + stripe + n, 67 + stripe + n, 33 + n];
+            });
+            
+            textures.woodTop = createTexture(function(x, y) {
+                var cx = 7.5, cy = 7.5;
+                var dist = Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
+                var ring = Math.floor(dist * 2) % 2;
+                var n = Math.random() * 15;
+                return ring ? [139 + n, 90 + n, 43 + n] : [101 + n, 67 + n, 33 + n];
+            });
+            
+            textures.leaves = createTexture(function(x, y) {
+                var n = Math.random() * 40;
+                var alpha = Math.random() > 0.3 ? 255 : 0;
+                return [30 + n, 100 + n, 30 + n, alpha];
+            });
+            
+            textures.sand = createTexture(function(x, y) {
+                var n = Math.random() * 20;
+                return [220 + n, 200 + n, 150 + n];
+            });
+            
+            textures.coalOre = createTexture(function(x, y) {
+                var stoneN = Math.random() * 30;
+                var isOre = ((x + y * 3) % 7 < 2) && (Math.random() > 0.5);
+                if (isOre) return [30 + Math.random() * 20, 30 + Math.random() * 20, 30 + Math.random() * 20];
+                return [120 + stoneN, 120 + stoneN, 120 + stoneN];
+            });
+            
+            textures.ironOre = createTexture(function(x, y) {
+                var stoneN = Math.random() * 30;
+                var isOre = ((x * 2 + y) % 6 < 2) && (Math.random() > 0.4);
+                if (isOre) {
+                    var oreN = Math.random() * 30;
+                    return [200 + oreN, 180 + oreN, 160 + oreN];
+                }
+                return [120 + stoneN, 120 + stoneN, 120 + stoneN];
+            });
+            
+            textures.goldOre = createTexture(function(x, y) {
+                var stoneN = Math.random() * 30;
+                var isOre = ((x + y * 2) % 7 < 2) && (Math.random() > 0.5);
+                if (isOre) return [255, 215 + Math.random() * 40, 0];
+                return [120 + stoneN, 120 + stoneN, 120 + stoneN];
+            });
+            
+            textures.diamondOre = createTexture(function(x, y) {
+                var stoneN = Math.random() * 30;
+                var isOre = ((x * 3 + y) % 8 < 2) && (Math.random() > 0.6);
+                if (isOre) return [100 + Math.random() * 50, 220 + Math.random() * 35, 255];
+                return [120 + stoneN, 120 + stoneN, 120 + stoneN];
+            });
+            
+            textures.cobblestone = createTexture(function(x, y) {
+                var n = Math.random() * 40;
+                var pattern = ((x + y) % 4 < 2) ? 20 : 0;
+                return [100 + n + pattern, 100 + n + pattern, 100 + n + pattern];
+            });
+            
+            textures.planks = createTexture(function(x, y) {
+                var stripe = (x % 4 === 0) ? -20 : 0;
+                var n = Math.random() * 15;
+                return [180 + stripe + n, 140 + stripe + n, 80 + n];
+            });
+            
+            textures.glass = createTexture(function(x, y) {
+                var isBorder = x === 0 || x === 15 || y === 0 || y === 15;
+                if (isBorder) return [200, 220, 255, 200];
+                return [220, 240, 255, 80];
+            });
+            
+            textures.brick = createTexture(function(x, y) {
+                var row = Math.floor(y / 4);
+                var offset = (row % 2) * 8;
+                var isMortar = (y % 4 === 0) || ((x + offset) % 8 === 0);
+                if (isMortar) return [180, 180, 170];
+                var n = Math.random() * 30;
+                return [180 + n, 80 + n, 60 + n];
+            });
+            
+            textures.gravel = createTexture(function(x, y) {
+                var n = Math.random() * 40;
+                var spot = Math.random() > 0.7 ? 30 : 0;
+                return [120 + n - spot, 110 + n - spot, 100 + n - spot];
+            });
+        }
+        
+        function initMaterials() {
+            materials[BLOCKS.GRASS] = [
+                new THREE.MeshLambertMaterial({ map: textures.grassSide }),
+                new THREE.MeshLambertMaterial({ map: textures.grassSide }),
+                new THREE.MeshLambertMaterial({ map: textures.grassTop }),
+                new THREE.MeshLambertMaterial({ map: textures.dirt }),
+                new THREE.MeshLambertMaterial({ map: textures.grassSide }),
+                new THREE.MeshLambertMaterial({ map: textures.grassSide })
+            ];
+            
+            materials[BLOCKS.DIRT] = new THREE.MeshLambertMaterial({ map: textures.dirt });
+            materials[BLOCKS.STONE] = new THREE.MeshLambertMaterial({ map: textures.stone });
+            materials[BLOCKS.WATER] = new THREE.MeshLambertMaterial({ 
+                map: textures.water, transparent: true, opacity: 0.7, side: THREE.DoubleSide
+            });
+            
+            materials[BLOCKS.WOOD] = [
+                new THREE.MeshLambertMaterial({ map: textures.woodSide }),
+                new THREE.MeshLambertMaterial({ map: textures.woodSide }),
+                new THREE.MeshLambertMaterial({ map: textures.woodTop }),
+                new THREE.MeshLambertMaterial({ map: textures.woodTop }),
+                new THREE.MeshLambertMaterial({ map: textures.woodSide }),
+                new THREE.MeshLambertMaterial({ map: textures.woodSide })
+            ];
+            
+            materials[BLOCKS.LEAVES] = new THREE.MeshLambertMaterial({ 
+                map: textures.leaves, transparent: true, side: THREE.DoubleSide, alphaTest: 0.5
+            });
+            
+            materials[BLOCKS.SAND] = new THREE.MeshLambertMaterial({ map: textures.sand });
+            materials[BLOCKS.COAL_ORE] = new THREE.MeshLambertMaterial({ map: textures.coalOre });
+            materials[BLOCKS.IRON_ORE] = new THREE.MeshLambertMaterial({ map: textures.ironOre });
+            materials[BLOCKS.GOLD_ORE] = new THREE.MeshLambertMaterial({ map: textures.goldOre });
+            materials[BLOCKS.DIAMOND_ORE] = new THREE.MeshLambertMaterial({ map: textures.diamondOre });
+            materials[BLOCKS.COBBLESTONE] = new THREE.MeshLambertMaterial({ map: textures.cobblestone });
+            materials[BLOCKS.PLANKS] = new THREE.MeshLambertMaterial({ map: textures.planks });
+            materials[BLOCKS.GLASS] = new THREE.MeshLambertMaterial({ 
+                map: textures.glass, transparent: true, opacity: 0.5 
+            });
+            materials[BLOCKS.BRICK] = new THREE.MeshLambertMaterial({ map: textures.brick });
+            materials[BLOCKS.GRAVEL] = new THREE.MeshLambertMaterial({ map: textures.gravel });
+            
+            // 花と草は単純な色付きマテリアルに変更
+            materials[BLOCKS.FLOWER_RED] = new THREE.MeshLambertMaterial({ color: 0xff3333 });
+            materials[BLOCKS.FLOWER_YELLOW] = new THREE.MeshLambertMaterial({ color: 0xffff33 });
+            materials[BLOCKS.TALL_GRASS] = new THREE.MeshLambertMaterial({ color: 0x44aa44 });
+        }
+        
+        // ==================== ワールド生成 ====================
+        function getKey(x, y, z) { return x + ',' + y + ',' + z; }
+        
+        function getBlock(x, y, z) { return world[getKey(x, y, z)] || BLOCKS.AIR; }
+        
+        function setBlock(x, y, z, type) {
+            if (x < 0 || x >= WORLD_SIZE_X || y < 0 || y >= WORLD_SIZE_Y || z < 0 || z >= WORLD_SIZE_Z) return;
+            var key = getKey(x, y, z);
+            if (type === BLOCKS.AIR) {
+                delete world[key];
+            } else {
+                world[key] = type;
+            }
+        }
+        
+        function getTerrainHeight(x, z) {
+            var scale1 = 0.03;
+            var scale2 = 0.06;
+            
+            var height = octaveNoise(x * scale1, z * scale1, 4, 0.5) * 15;
+            height += octaveNoise(x * scale2, z * scale2, 3, 0.5) * 6;
+            
+            var riverNoise = octaveNoise(x * 0.015 + 100, z * 0.015 + 100, 2, 0.5);
+            var riverWidth = 0.12;
+            
+            if (Math.abs(riverNoise) < riverWidth) {
+                var riverDepth = 1 - Math.abs(riverNoise) / riverWidth;
+                height -= riverDepth * 12;
+            }
+            
+            return Math.floor(height + GROUND_LEVEL);
+        }
+        
+        function generateOre(x, y, z) {
+            var oreValue = octaveNoise(x * 0.15, y * 0.15 + z * 0.15, 2, 0.5);
+            
+            if (y >= 5 && y <= 40 && oreValue > 0.6 && Math.random() < 0.08) return BLOCKS.COAL_ORE;
+            if (y >= 5 && y <= 35 && oreValue > 0.65 && Math.random() < 0.06) return BLOCKS.IRON_ORE;
+            if (y >= 5 && y <= 25 && oreValue > 0.7 && Math.random() < 0.03) return BLOCKS.GOLD_ORE;
+            if (y >= 5 && y <= 12 && oreValue > 0.75 && Math.random() < 0.01) return BLOCKS.DIAMOND_ORE;
+            if (Math.random() < 0.02) return BLOCKS.GRAVEL;
+            
+            return BLOCKS.STONE;
+        }
+        
+        function generateTerrain(progress) {
+            var totalBlocks = WORLD_SIZE_X * WORLD_SIZE_Z;
+            var processed = 0;
+            
+            for (var x = 0; x < WORLD_SIZE_X; x++) {
+                for (var z = 0; z < WORLD_SIZE_Z; z++) {
+                    var height = getTerrainHeight(x, z);
+                    
+                    for (var y = 0; y < WORLD_SIZE_Y; y++) {
+                        var blockType = BLOCKS.AIR;
+                        
+                        if (y < height) {
+                            if (y < height - 4) {
+                                blockType = BLOCKS.STONE;
+                                
+                                // 洞窟生成
+                                var caveValue = octaveNoise(x * 0.1, y * 0.1, 2, 0.5) + 
+                                               octaveNoise(z * 0.1, y * 0.15, 2, 0.5);
+                                if (caveValue > 0.7 && y > 5 && y < height - 6) {
+                                    blockType = BLOCKS.AIR;
+                                }
+                                
+                                if (blockType === BLOCKS.STONE) {
+                                    blockType = generateOre(x, y, z);
+                                }
+                            } else if (y < height - 1) {
+                                blockType = BLOCKS.DIRT;
+                            } else {
+                                if (height <= WATER_LEVEL + 2) {
+                                    blockType = BLOCKS.SAND;
+                                } else {
+                                    blockType = BLOCKS.GRASS;
+                                }
+                            }
+                        } else if (y <= WATER_LEVEL && y >= height) {
+                            blockType = BLOCKS.WATER;
+                        }
+                        
+                        if (blockType !== BLOCKS.AIR) {
+                            setBlock(x, y, z, blockType);
+                        }
+                    }
+                    
+                    processed++;
+                }
+                
+                if (x % 8 === 0) progress(processed / totalBlocks * 0.4);
+            }
+        }
+        
+        function generateTree(x, y, z) {
+            var height = 4 + Math.floor(Math.random() * 3);
+            
+            for (var dy = 0; dy < height; dy++) {
+                setBlock(x, y + dy, z, BLOCKS.WOOD);
+            }
+            
+            var leafStart = height - 2;
+            for (var dy = leafStart; dy <= height + 1; dy++) {
+                var radius = dy === height + 1 ? 1 : 2;
+                for (var dx = -radius; dx <= radius; dx++) {
+                    for (var dz = -radius; dz <= radius; dz++) {
+                        if (dx === 0 && dz === 0 && dy < height) continue;
+                        if (Math.abs(dx) === radius && Math.abs(dz) === radius && Math.random() > 0.5) continue;
+                        if (getBlock(x + dx, y + dy, z + dz) === BLOCKS.AIR) {
+                            setBlock(x + dx, y + dy, z + dz, BLOCKS.LEAVES);
+                        }
+                    }
+                }
+            }
+        }
+        
+        function generateTrees(progress) {
+            var treeCount = Math.floor(WORLD_SIZE_X * WORLD_SIZE_Z * 0.002);
+            
+            for (var i = 0; i < treeCount; i++) {
+                var x = Math.floor(Math.random() * (WORLD_SIZE_X - 6)) + 3;
+                var z = Math.floor(Math.random() * (WORLD_SIZE_Z - 6)) + 3;
+                var groundY = getTerrainHeight(x, z);
+                
+                if (groundY > WATER_LEVEL + 2 && getBlock(x, groundY - 1, z) === BLOCKS.GRASS) {
+                    generateTree(x, groundY, z);
+                }
+                
+                if (i % 30 === 0) progress(0.4 + (i / treeCount) * 0.2);
+            }
+        }
+        
+        function generateVegetation(progress) {
+            for (var x = 0; x < WORLD_SIZE_X; x++) {
+                for (var z = 0; z < WORLD_SIZE_Z; z++) {
+                    var groundY = getTerrainHeight(x, z);
+                    
+                    if (groundY > WATER_LEVEL + 1 && getBlock(x, groundY - 1, z) === BLOCKS.GRASS) {
+                        if (getBlock(x, groundY, z) === BLOCKS.AIR) {
+                            var rand = Math.random();
+                            // 植生を大幅削減
+                            if (rand < 0.02) setBlock(x, groundY, z, BLOCKS.TALL_GRASS);
+                            else if (rand < 0.022) setBlock(x, groundY, z, BLOCKS.FLOWER_RED);
+                            else if (rand < 0.024) setBlock(x, groundY, z, BLOCKS.FLOWER_YELLOW);
+                        }
+                    }
+                }
+                
+                if (x % 16 === 0) progress(0.6 + (x / WORLD_SIZE_X) * 0.1);
+            }
+        }
+        
+        function generateHouse(x, y, z) {
+            var width = 5, depth = 6, height = 4;
+            
+            for (var dx = -1; dx <= width; dx++) {
+                for (var dz = -1; dz <= depth; dz++) {
+                    for (var dy = y - 3; dy < y; dy++) {
+                        if (getBlock(x + dx, dy, z + dz) === BLOCKS.AIR) {
+                            setBlock(x + dx, dy, z + dz, BLOCKS.DIRT);
+                        }
+                    }
+                    setBlock(x + dx, y, z + dz, BLOCKS.PLANKS);
+                }
+            }
+            
+            for (var dy = 1; dy < height; dy++) {
+                for (var dx = 0; dx < width; dx++) {
+                    if (!(dx === 2 && dy < 3)) setBlock(x + dx, y + dy, z, BLOCKS.PLANKS);
+                    setBlock(x + dx, y + dy, z + depth - 1, BLOCKS.PLANKS);
+                }
+                for (var dz = 0; dz < depth; dz++) {
+                    if (!(dz === 2 && dy === 2)) {
+                        setBlock(x, y + dy, z + dz, BLOCKS.PLANKS);
+                    } else {
+                        setBlock(x, y + dy, z + dz, BLOCKS.GLASS);
+                    }
+                    if (!(dz === 2 && dy === 2)) {
+                        setBlock(x + width - 1, y + dy, z + dz, BLOCKS.PLANKS);
+                    } else {
+                        setBlock(x + width - 1, y + dy, z + dz, BLOCKS.GLASS);
+                    }
+                }
+            }
+            
+            for (var dx = -1; dx <= width; dx++) {
+                for (var dz = -1; dz <= depth; dz++) {
+                    setBlock(x + dx, y + height, z + dz, BLOCKS.COBBLESTONE);
+                }
+            }
+        }
+        
+        function generateStructures(progress) {
+            // 家を1軒だけ生成
+            var attempts = 0;
+            while (attempts < 30) {
+                var x = Math.floor(Math.random() * (WORLD_SIZE_X - 15)) + 8;
+                var z = Math.floor(Math.random() * (WORLD_SIZE_Z - 15)) + 8;
+                var y = getTerrainHeight(x, z);
+                
+                if (y > WATER_LEVEL + 3 && y < GROUND_LEVEL + 6) {
+                    var flat = true;
+                    for (var dx = -2; dx <= 2 && flat; dx++) {
+                        for (var dz = -2; dz <= 2 && flat; dz++) {
+                            if (Math.abs(getTerrainHeight(x + dx, z + dz) - y) > 2) flat = false;
+                        }
+                    }
+                    
+                    if (flat) {
+                        generateHouse(x, y, z);
+                        break;
+                    }
+                }
+                attempts++;
+            }
+            progress(0.75);
+        }
+        
+        // ==================== メッシュ生成 ====================
+        function createBlockMesh(x, y, z, type) {
+            // 花や草は十字の板状にする
+            if (type === BLOCKS.FLOWER_RED || type === BLOCKS.FLOWER_YELLOW || type === BLOCKS.TALL_GRASS) {
+                var group = new THREE.Group();
+                var planeGeo = new THREE.PlaneGeometry(0.8, 0.8);
+                var mat = materials[type];
+                
+                var plane1 = new THREE.Mesh(planeGeo, mat);
+                plane1.rotation.y = Math.PI / 4;
+                group.add(plane1);
+                
+                var plane2 = new THREE.Mesh(planeGeo, mat);
+                plane2.rotation.y = -Math.PI / 4;
+                group.add(plane2);
+                
+                group.position.set(x + 0.5, y + 0.4, z + 0.5);
+                group.userData = { x: x, y: y, z: z, type: type };
+                return group;
+            }
+            
+            var geometry = new THREE.BoxGeometry(1, 1, 1);
+            var material = materials[type];
+            var mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(x + 0.5, y + 0.5, z + 0.5);
+            mesh.userData = { x: x, y: y, z: z, type: type };
+            return mesh;
+        }
+        
+        function isBlockVisible(x, y, z, type) {
+            if (TRANSPARENT_BLOCKS.indexOf(type) !== -1) return true;
+            
+            var neighbors = [
+                getBlock(x + 1, y, z), getBlock(x - 1, y, z),
+                getBlock(x, y + 1, z), getBlock(x, y - 1, z),
+                getBlock(x, y, z + 1), getBlock(x, y, z - 1)
+            ];
+            
+            for (var i = 0; i < neighbors.length; i++) {
+                if (TRANSPARENT_BLOCKS.indexOf(neighbors[i]) !== -1) return true;
+            }
+            return false;
+        }
+        
+        function updateVisibleBlocks(progress) {
+            var count = 0;
+            var keys = Object.keys(world);
+            var total = keys.length;
+            
+            for (var i = 0; i < keys.length; i++) {
+                var key = keys[i];
+                var type = world[key];
+                var parts = key.split(',');
+                var x = parseInt(parts[0]);
+                var y = parseInt(parts[1]);
+                var z = parseInt(parts[2]);
+                
+                if (!isBlockVisible(x, y, z, type)) {
+                    count++;
+                    continue;
+                }
+                
+                var mesh = createBlockMesh(x, y, z, type);
+                scene.add(mesh);
+                meshes[key] = mesh;
+                
+                count++;
+                if (count % 3000 === 0) progress(0.75 + (count / total) * 0.2);
+            }
+        }
+        
+        function updateBlockMesh(x, y, z) {
+            var key = getKey(x, y, z);
+            var type = getBlock(x, y, z);
+            
+            if (meshes[key]) {
+                scene.remove(meshes[key]);
+                delete meshes[key];
+            }
+            
+            if (type !== BLOCKS.AIR && isBlockVisible(x, y, z, type)) {
+                var mesh = createBlockMesh(x, y, z, type);
+                scene.add(mesh);
+                meshes[key] = mesh;
+            }
+            
+            var neighbors = [
+                [x + 1, y, z], [x - 1, y, z],
+                [x, y + 1, z], [x, y - 1, z],
+                [x, y, z + 1], [x, y, z - 1]
+            ];
+            
+            for (var i = 0; i < neighbors.length; i++) {
+                var n = neighbors[i];
+                var nKey = getKey(n[0], n[1], n[2]);
+                var nType = getBlock(n[0], n[1], n[2]);
+                
+                if (nType !== BLOCKS.AIR) {
+                    if (meshes[nKey]) {
+                        if (!isBlockVisible(n[0], n[1], n[2], nType)) {
+                            scene.remove(meshes[nKey]);
+                            delete meshes[nKey];
+                        }
+                    } else {
+                        if (isBlockVisible(n[0], n[1], n[2], nType)) {
+                            var mesh = createBlockMesh(n[0], n[1], n[2], nType);
+                            scene.add(mesh);
+                            meshes[nKey] = mesh;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // ==================== Mob ====================
+        function Mob(type, x, y, z) {
+            this.type = type;
+            this.position = new THREE.Vector3(x, y, z);
+            this.direction = Math.random() * Math.PI * 2;
+            this.moveTimer = 0;
+            this.isMoving = false;
+            this.walkPhase = 0;
+            this.legs = [];
+            this.mesh = this.createMesh();
+            scene.add(this.mesh);
+        }
+        
+        Mob.prototype.createMesh = function() {
+            var group = new THREE.Group();
+            var self = this;
+            
+            if (this.type === 'cow') {
+                var bodyGeo = new THREE.BoxGeometry(1.2, 0.8, 0.7);
+                var bodyMat = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+                var body = new THREE.Mesh(bodyGeo, bodyMat);
+                body.position.y = 0.6;
+                group.add(body);
+                
+                var spotGeo = new THREE.BoxGeometry(0.4, 0.3, 0.72);
+                var spotMat = new THREE.MeshLambertMaterial({ color: 0xFFFFFF });
+                var spot = new THREE.Mesh(spotGeo, spotMat);
+                spot.position.set(0.2, 0.7, 0);
+                group.add(spot);
+                
+                var headGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+                var head = new THREE.Mesh(headGeo, bodyMat);
+                head.position.set(0.7, 0.8, 0);
+                group.add(head);
+                
+                // 脚（アニメーション用に保存）
+                var legGeo = new THREE.BoxGeometry(0.2, 0.4, 0.2);
+                var legMat = new THREE.MeshLambertMaterial({ color: 0x654321 });
+                var legPos = [[0.4, 0.2, 0.2], [0.4, 0.2, -0.2], [-0.4, 0.2, 0.2], [-0.4, 0.2, -0.2]];
+                for (var i = 0; i < legPos.length; i++) {
+                    var leg = new THREE.Mesh(legGeo, legMat);
+                    leg.position.set(legPos[i][0], legPos[i][1], legPos[i][2]);
+                    group.add(leg);
+                    self.legs.push(leg);
+                }
+            } else if (this.type === 'chicken') {
+                var bodyGeo = new THREE.BoxGeometry(0.4, 0.35, 0.35);
+                var bodyMat = new THREE.MeshLambertMaterial({ color: 0xFFFFFF });
+                var body = new THREE.Mesh(bodyGeo, bodyMat);
+                body.position.y = 0.35;
+                group.add(body);
+                
+                var headGeo = new THREE.BoxGeometry(0.25, 0.25, 0.2);
+                var head = new THREE.Mesh(headGeo, bodyMat);
+                head.position.set(0.25, 0.55, 0);
+                group.add(head);
+                
+                var beakGeo = new THREE.BoxGeometry(0.15, 0.08, 0.08);
+                var beakMat = new THREE.MeshLambertMaterial({ color: 0xFFA500 });
+                var beak = new THREE.Mesh(beakGeo, beakMat);
+                beak.position.set(0.42, 0.5, 0);
+                group.add(beak);
+                
+                var combGeo = new THREE.BoxGeometry(0.08, 0.12, 0.08);
+                var combMat = new THREE.MeshLambertMaterial({ color: 0xFF0000 });
+                var comb = new THREE.Mesh(combGeo, combMat);
+                comb.position.set(0.25, 0.72, 0);
+                group.add(comb);
+                
+                // 脚（アニメーション用）
+                var legGeo = new THREE.BoxGeometry(0.06, 0.2, 0.06);
+                var legMat = new THREE.MeshLambertMaterial({ color: 0xFFA500 });
+                var leg1 = new THREE.Mesh(legGeo, legMat);
+                leg1.position.set(0, 0.1, 0.08);
+                group.add(leg1);
+                self.legs.push(leg1);
+                var leg2 = new THREE.Mesh(legGeo, legMat);
+                leg2.position.set(0, 0.1, -0.08);
+                group.add(leg2);
+                self.legs.push(leg2);
+            }
+            
+            group.position.copy(this.position);
+            return group;
+        };
+        
+        Mob.prototype.update = function(delta) {
+            this.moveTimer -= delta;
+            
+            if (this.moveTimer <= 0) {
+                this.direction += (Math.random() - 0.5) * Math.PI;
+                this.moveTimer = 2 + Math.random() * 3;
+                this.isMoving = Math.random() > 0.4;
+            }
+            
+            if (!this.isMoving) {
+                // 止まっているときは足をリセット
+                for (var i = 0; i < this.legs.length; i++) {
+                    this.legs[i].rotation.x = 0;
+                }
+                return;
+            }
+            
+            var speed = this.type === 'chicken' ? 1.5 : 1.0;
+            var vx = Math.cos(this.direction) * speed;
+            var vz = Math.sin(this.direction) * speed;
+            
+            var nextX = this.position.x + vx * delta;
+            var nextZ = this.position.z + vz * delta;
+            
+            if (nextX < 2 || nextX > WORLD_SIZE_X - 2 || nextZ < 2 || nextZ > WORLD_SIZE_Z - 2) {
+                this.direction += Math.PI;
+                return;
+            }
+            
+            var groundY = this.getGroundHeight(Math.floor(nextX), Math.floor(nextZ));
+            
+            if (groundY <= WATER_LEVEL) {
+                this.direction += Math.PI * 0.5;
+                return;
+            }
+            
+            this.position.x = nextX;
+            this.position.z = nextZ;
+            this.position.y = groundY;
+            
+            this.mesh.position.copy(this.position);
+            this.mesh.rotation.y = -this.direction + Math.PI / 2;
+            
+            // 足のアニメーション
+            this.walkPhase += delta * 10;
+            var legSwing = Math.sin(this.walkPhase) * 0.5;
+            
+            if (this.legs.length >= 4) {
+                // 牛: 4本足（対角線で動く）
+                this.legs[0].rotation.x = legSwing;
+                this.legs[1].rotation.x = -legSwing;
+                this.legs[2].rotation.x = -legSwing;
+                this.legs[3].rotation.x = legSwing;
+            } else if (this.legs.length >= 2) {
+                // 鶏: 2本足
+                this.legs[0].rotation.x = legSwing;
+                this.legs[1].rotation.x = -legSwing;
+            }
+        };
+        
+        Mob.prototype.getGroundHeight = function(x, z) {
+            for (var y = WORLD_SIZE_Y - 1; y >= 0; y--) {
+                var block = getBlock(x, y, z);
+                if (block !== BLOCKS.AIR && NON_SOLID_BLOCKS.indexOf(block) === -1) {
+                    return y + 1;
+                }
+            }
+            return GROUND_LEVEL;
+        };
+        
+        function spawnMobs() {
+            var mobCount = 3;
+            
+            for (var i = 0; i < mobCount; i++) {
+                var attempts = 0;
+                while (attempts < 30) {
+                    var x = Math.random() * (WORLD_SIZE_X - 20) + 10;
+                    var z = Math.random() * (WORLD_SIZE_Z - 20) + 10;
+                    var groundY = getTerrainHeight(Math.floor(x), Math.floor(z));
+                    
+                    if (groundY > WATER_LEVEL + 2) {
+                        var type = Math.random() > 0.5 ? 'cow' : 'chicken';
+                        mobs.push(new Mob(type, x, groundY, z));
+                        break;
+                    }
+                    attempts++;
+                }
+            }
+        }
+        
+        // ==================== パーティクル ====================
+        function Particle(x, y, z, color) {
+            var geometry = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+            var material = new THREE.MeshBasicMaterial({ color: color, transparent: true });
+            this.mesh = new THREE.Mesh(geometry, material);
+            this.mesh.position.set(x, y, z);
+            
+            this.velocity = new THREE.Vector3(
+                (Math.random() - 0.5) * 4,
+                Math.random() * 4 + 2,
+                (Math.random() - 0.5) * 4
+            );
+            
+            this.life = 1.0;
+            scene.add(this.mesh);
+        }
+        
+        Particle.prototype.update = function(delta) {
+            this.velocity.y -= 15 * delta;
+            this.mesh.position.add(this.velocity.clone().multiplyScalar(delta));
+            this.life -= delta * 2;
+            this.mesh.material.opacity = this.life;
+            return this.life > 0;
+        };
+        
+        Particle.prototype.destroy = function() {
+            scene.remove(this.mesh);
+        };
+        
+        function createBreakParticles(x, y, z, type) {
+            // 軽量化のため無効化
+        }
+        
+        // ==================== 音声 ====================
+        var audioContext = null;
+        
+        function initAudio() {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            } catch(e) {
+                console.log('Audio not supported');
+            }
+        }
+        
+        function playBreakSound(type) {
+            if (!audioContext) return;
+            try {
+                var oscillator = audioContext.createOscillator();
+                var gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                var freq = type === BLOCKS.STONE ? 300 : (type === BLOCKS.WOOD ? 400 : 200);
+                
+                oscillator.frequency.setValueAtTime(freq, audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(freq * 0.7, audioContext.currentTime + 0.1);
+                
+                gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+                
+                oscillator.type = 'square';
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.15);
+            } catch(e) {}
+        }
+        
+        function playPlaceSound() {
+            if (!audioContext) return;
+            try {
+                var oscillator = audioContext.createOscillator();
+                var gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(200, audioContext.currentTime + 0.05);
+                
+                gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+                
+                oscillator.type = 'square';
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.1);
+            } catch(e) {}
+        }
+        
+        // ==================== ホットバー ====================
+        function initHotbar() {
+            var hotbar = document.getElementById('hotbar');
+            hotbar.innerHTML = '';
+            
+            var colors = {};
+            colors[BLOCKS.GRASS] = 'linear-gradient(180deg, #3d8c40 30%, #8b6914 30%)';
+            colors[BLOCKS.DIRT] = '#8b6914';
+            colors[BLOCKS.STONE] = '#808080';
+            colors[BLOCKS.WOOD] = '#6b4423';
+            colors[BLOCKS.PLANKS] = '#b4946e';
+            colors[BLOCKS.COBBLESTONE] = '#606060';
+            colors[BLOCKS.GLASS] = 'rgba(200,220,255,0.5)';
+            colors[BLOCKS.BRICK] = '#b45a3c';
+            colors[BLOCKS.SAND] = '#dcc88a';
+            
+            for (var i = 0; i < HOTBAR_ITEMS.length; i++) {
+                var blockType = HOTBAR_ITEMS[i];
+                var slot = document.createElement('div');
+                slot.className = 'hotbar-slot' + (i === selectedSlot ? ' selected' : '');
+                slot.innerHTML = '<span class="slot-number">' + (i + 1) + '</span>' +
+                    '<div class="slot-color" style="background:' + colors[blockType] + '"></div>';
+                slot.setAttribute('data-index', i);
+                slot.onclick = function() {
+                    selectSlot(parseInt(this.getAttribute('data-index')));
+                };
+                hotbar.appendChild(slot);
+            }
+        }
+        
+        function selectSlot(index) {
+            selectedSlot = index;
+            var slots = document.querySelectorAll('.hotbar-slot');
+            for (var i = 0; i < slots.length; i++) {
+                slots[i].classList.toggle('selected', i === index);
+            }
+        }
+        
+        // ==================== レイキャスト ====================
+        var raycaster = new THREE.Raycaster();
+        raycaster.far = 5;
+        
+        function getTargetBlock() {
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+            
+            var meshArray = [];
+            for (var key in meshes) {
+                meshArray.push(meshes[key]);
+            }
+            
+            var intersects = raycaster.intersectObjects(meshArray, false);
+            
+            for (var i = 0; i < intersects.length; i++) {
+                var obj = intersects[i].object;
+                
+                if (obj.userData && obj.userData.type !== undefined) {
+                    if (obj.userData.type === BLOCKS.WATER) continue;
+                    
+                    return {
+                        position: { x: obj.userData.x, y: obj.userData.y, z: obj.userData.z },
+                        normal: intersects[i].face.normal,
+                        type: obj.userData.type
+                    };
+                }
+            }
+            
+            return null;
+        }
+        
+        // ==================== ブロック操作 ====================
+        function breakBlock() {
+            var target = getTargetBlock();
+            if (!target) return;
+            
+            var x = target.position.x;
+            var y = target.position.y;
+            var z = target.position.z;
+            var type = target.type;
+            
+            if (y === 0) return;
+            
+            createBreakParticles(x, y, z, type);
+            playBreakSound(type);
+            
+            setBlock(x, y, z, BLOCKS.AIR);
+            updateBlockMesh(x, y, z);
+        }
+        
+        function placeBlock() {
+            var target = getTargetBlock();
+            if (!target) return;
+            
+            var blockType = HOTBAR_ITEMS[selectedSlot];
+            
+            var newX = target.position.x + Math.round(target.normal.x);
+            var newY = target.position.y + Math.round(target.normal.y);
+            var newZ = target.position.z + Math.round(target.normal.z);
+            
+            if (newX < 0 || newX >= WORLD_SIZE_X || newY < 0 || newY >= WORLD_SIZE_Y || newZ < 0 || newZ >= WORLD_SIZE_Z) return;
+            
+            var playerX = Math.floor(camera.position.x);
+            var playerY = Math.floor(camera.position.y - 1.5);
+            var playerZ = Math.floor(camera.position.z);
+            
+            if ((newX === playerX && newZ === playerZ) && (newY === playerY || newY === playerY + 1)) {
+                return;
+            }
+            
+            var existing = getBlock(newX, newY, newZ);
+            if (existing === BLOCKS.AIR || NON_SOLID_BLOCKS.indexOf(existing) !== -1) {
+                playPlaceSound();
+                setBlock(newX, newY, newZ, blockType);
+                updateBlockMesh(newX, newY, newZ);
+            }
+        }
+        
+        // ==================== プレイヤー物理 ====================
+        function isInWater() {
+            var x = Math.floor(camera.position.x);
+            var y = Math.floor(camera.position.y - 0.5);
+            var z = Math.floor(camera.position.z);
+            return getBlock(x, y, z) === BLOCKS.WATER;
+        }
+        
+        function getPlayerGroundY() {
+            var x = Math.floor(camera.position.x);
+            var z = Math.floor(camera.position.z);
+            
+            for (var y = Math.floor(camera.position.y); y >= 0; y--) {
+                var block = getBlock(x, y, z);
+                if (block !== BLOCKS.AIR && NON_SOLID_BLOCKS.indexOf(block) === -1) {
+                    return y + 1;
+                }
+            }
+            return 0;
+        }
+        
+        function checkCollision(x, y, z) {
+            var margin = 0.3;
+            var height = 1.62;
+            
+            var minX = Math.floor(x - margin);
+            var maxX = Math.floor(x + margin);
+            var minY = Math.floor(y - height);
+            var maxY = Math.floor(y + 0.1);
+            var minZ = Math.floor(z - margin);
+            var maxZ = Math.floor(z + margin);
+            
+            for (var bx = minX; bx <= maxX; bx++) {
+                for (var by = minY; by <= maxY; by++) {
+                    for (var bz = minZ; bz <= maxZ; bz++) {
+                        var block = getBlock(bx, by, bz);
+                        if (block !== BLOCKS.AIR && NON_SOLID_BLOCKS.indexOf(block) === -1) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            
+            return false;
+        }
+        
+        // 安全なスポーン地点を探す（地上で空間が確保されている場所）
+        function findSafeSpawnY(x, z) {
+            // 上から下に向かって地面を探す
+            for (var y = WORLD_SIZE_Y - 3; y >= WATER_LEVEL; y--) {
+                var blockBelow = getBlock(Math.floor(x), y - 1, Math.floor(z));
+                var blockAt = getBlock(Math.floor(x), y, Math.floor(z));
+                var blockAbove = getBlock(Math.floor(x), y + 1, Math.floor(z));
+                
+                // 足元がソリッドで、頭と体の位置が空気またはパススルー可能
+                var isSolidBelow = blockBelow !== BLOCKS.AIR && NON_SOLID_BLOCKS.indexOf(blockBelow) === -1;
+                var isPassableAt = blockAt === BLOCKS.AIR || NON_SOLID_BLOCKS.indexOf(blockAt) !== -1;
+                var isPassableAbove = blockAbove === BLOCKS.AIR || NON_SOLID_BLOCKS.indexOf(blockAbove) !== -1;
+                
+                // 水上には立たない
+                if (blockBelow === BLOCKS.WATER) continue;
+                
+                if (isSolidBelow && isPassableAt && isPassableAbove) {
+                    return y + 1.62; // プレイヤーの目の高さ
+                }
+            }
+            return -1; // 見つからなかった
+        }
+        
+        function updatePlayer(delta) {
+            var inWater = isInWater();
+            var moveSpeed = isFlying ? 12 : (inWater ? 2.5 : 6);
+            
+            var forward = new THREE.Vector3();
+            camera.getWorldDirection(forward);
+            forward.y = 0;
+            forward.normalize();
+            
+            var right = new THREE.Vector3();
+            right.crossVectors(forward, new THREE.Vector3(0, 1, 0));
+            
+            var direction = new THREE.Vector3();
+            if (keys.forward) direction.add(forward);
+            if (keys.backward) direction.sub(forward);
+            if (keys.right) direction.add(right);
+            if (keys.left) direction.sub(right);
+            
+            if (direction.length() > 0) {
+                direction.normalize();
+                velocity.x = direction.x * moveSpeed;
+                velocity.z = direction.z * moveSpeed;
+            } else {
+                velocity.x *= 0.8;
+                velocity.z *= 0.8;
+            }
+            
+            if (isFlying) {
+                if (keys.jump) {
+                    velocity.y = 6;
+                } else {
+                    velocity.y *= 0.9;
+                }
+            } else {
+                if (inWater) {
+                    velocity.y -= 4 * delta;
+                    if (keys.jump) velocity.y = 2.5;
+                    velocity.y = Math.max(velocity.y, -1.5);
+                } else {
+                    velocity.y -= 20 * delta;
+                    
+                    var groundY = getPlayerGroundY();
+                    if (camera.position.y - 1.62 <= groundY) {
+                        camera.position.y = groundY + 1.62;
+                        velocity.y = 0;
+                        if (keys.jump) velocity.y = 7;
+                    }
+                }
+            }
+            
+            var newX = camera.position.x + velocity.x * delta;
+            var newY = camera.position.y + velocity.y * delta;
+            var newZ = camera.position.z + velocity.z * delta;
+            
+            // 飛行モード時は衝突判定を緩和
+            if (isFlying) {
+                camera.position.x = newX;
+                camera.position.y = newY;
+                camera.position.z = newZ;
+            } else {
+                if (!checkCollision(newX, camera.position.y, camera.position.z)) {
+                    camera.position.x = newX;
+                } else {
+                    velocity.x = 0;
+                }
+                
+                if (!checkCollision(camera.position.x, newY, camera.position.z)) {
+                    camera.position.y = newY;
+                } else {
+                    velocity.y = 0;
+                }
+                
+                if (!checkCollision(camera.position.x, camera.position.y, newZ)) {
+                    camera.position.z = newZ;
+                } else {
+                    velocity.z = 0;
+                }
+            }
+            
+            camera.position.x = Math.max(1, Math.min(WORLD_SIZE_X - 1, camera.position.x));
+            camera.position.z = Math.max(1, Math.min(WORLD_SIZE_Z - 1, camera.position.z));
+            camera.position.y = Math.max(2, Math.min(WORLD_SIZE_Y - 1, camera.position.y));
+            
+            document.getElementById('coords').textContent = 
+                Math.floor(camera.position.x) + ', ' + Math.floor(camera.position.y) + ', ' + Math.floor(camera.position.z);
+            document.getElementById('mode').textContent = 
+                isFlying ? '飛行' : (inWater ? '水中' : '通常');
+            
+            // デバッグ: 入力状態を表示
+            var inputState = '';
+            if (keys.forward) inputState += 'W';
+            if (keys.backward) inputState += 'S';
+            if (keys.left) inputState += 'A';
+            if (keys.right) inputState += 'D';
+            if (keys.jump) inputState += 'J';
+            document.getElementById('debug-info').textContent = 'Input:' + (inputState || 'none') + ' V:' + velocity.x.toFixed(1) + ',' + velocity.z.toFixed(1);
+        }
+        
+        // ==================== 入力処理 ====================
+        function updateCameraRotation() {
+            camera.rotation.order = 'YXZ';
+            camera.rotation.y = yaw;
+            camera.rotation.x = pitch;
+        }
+        
+        function initControls() {
+            // キーボード
+            document.addEventListener('keydown', function(e) {
+                if (!isPlaying) return;
+                
+                switch (e.code) {
+                    case 'KeyW': keys.forward = true; break;
+                    case 'KeyS': keys.backward = true; break;
+                    case 'KeyA': keys.left = true; break;
+                    case 'KeyD': keys.right = true; break;
+                    case 'Space': keys.jump = true; e.preventDefault(); break;
+                    case 'KeyF': isFlying = !isFlying; velocity.y = 0; break;
+                    case 'Digit1': case 'Digit2': case 'Digit3': case 'Digit4': case 'Digit5':
+                    case 'Digit6': case 'Digit7': case 'Digit8': case 'Digit9':
+                        selectSlot(parseInt(e.code.replace('Digit', '')) - 1);
+                        break;
+                }
+            });
+            
+            document.addEventListener('keyup', function(e) {
+                switch (e.code) {
+                    case 'KeyW': keys.forward = false; break;
+                    case 'KeyS': keys.backward = false; break;
+                    case 'KeyA': keys.left = false; break;
+                    case 'KeyD': keys.right = false; break;
+                    case 'Space': keys.jump = false; break;
+                }
+            });
+            
+            // PC用マウス
+            document.addEventListener('mousemove', function(e) {
+                if (!isPlaying || isMobile) return;
+                if (document.pointerLockElement !== renderer.domElement) return;
+                
+                yaw -= e.movementX * 0.002;
+                pitch -= e.movementY * 0.002;
+                pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, pitch));
+                updateCameraRotation();
+            });
+            
+            document.addEventListener('mousedown', function(e) {
+                if (!isPlaying || isMobile) return;
+                if (document.pointerLockElement !== renderer.domElement) return;
+                
+                if (e.button === 0) breakBlock();
+                else if (e.button === 2) placeBlock();
+            });
+            
+            document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+            
+            // モバイル用タッチ
+            var joystickArea = document.getElementById('joystick-area');
+            var joystickThumb = document.getElementById('joystick-thumb');
+            
+            if (joystickArea) {
+                joystickArea.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    joystickActive = true;
+                    var touch = e.touches[0];
+                    var rect = joystickArea.getBoundingClientRect();
+                    joystickStart.x = rect.left + rect.width / 2;
+                    joystickStart.y = rect.top + rect.height / 2;
+                });
+                
+                joystickArea.addEventListener('touchmove', function(e) {
+                    if (!joystickActive) return;
+                    e.preventDefault();
+                    var touch = e.touches[0];
+                    var dx = touch.clientX - joystickStart.x;
+                    var dy = touch.clientY - joystickStart.y;
+                    var dist = Math.sqrt(dx * dx + dy * dy);
+                    var maxDist = 40;
+                    
+                    if (dist > maxDist) {
+                        dx = dx / dist * maxDist;
+                        dy = dy / dist * maxDist;
+                    }
+                    
+                    joystickThumb.style.transform = 'translate(calc(-50% + ' + dx + 'px), calc(-50% + ' + dy + 'px))';
+                    
+                    // 感度を下げて判定（5ピクセルで反応）
+                    keys.forward = dy < -5;
+                    keys.backward = dy > 5;
+                    keys.left = dx < -5;
+                    keys.right = dx > 5;
+                });
+                
+                joystickArea.addEventListener('touchend', function(e) {
+                    joystickActive = false;
+                    joystickThumb.style.transform = 'translate(-50%, -50%)';
+                    keys.forward = false;
+                    keys.backward = false;
+                    keys.left = false;
+                    keys.right = false;
+                });
+            }
+            
+            // カメラ操作（右側の画面タッチ）
+            renderer.domElement.addEventListener('touchstart', function(e) {
+                if (!isPlaying) return;
+                for (var i = 0; i < e.touches.length; i++) {
+                    var touch = e.touches[i];
+                    if (touch.clientX > window.innerWidth * 0.4 && cameraTouch === null) {
+                        cameraTouch = {
+                            id: touch.identifier,
+                            x: touch.clientX,
+                            y: touch.clientY
+                        };
+                    }
+                }
+            });
+            
+            renderer.domElement.addEventListener('touchmove', function(e) {
+                if (!isPlaying || cameraTouch === null) return;
+                for (var i = 0; i < e.touches.length; i++) {
+                    var touch = e.touches[i];
+                    if (touch.identifier === cameraTouch.id) {
+                        var dx = touch.clientX - cameraTouch.x;
+                        var dy = touch.clientY - cameraTouch.y;
+                        
+                        yaw -= dx * 0.005;
+                        pitch -= dy * 0.005;
+                        pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, pitch));
+                        updateCameraRotation();
+                        
+                        cameraTouch.x = touch.clientX;
+                        cameraTouch.y = touch.clientY;
+                    }
+                }
+            });
+            
+            renderer.domElement.addEventListener('touchend', function(e) {
+                var found = false;
+                for (var i = 0; i < e.touches.length; i++) {
+                    if (e.touches[i].identifier === cameraTouch.id) found = true;
+                }
+                if (!found) cameraTouch = null;
+            });
+            
+            // モバイルボタン
+            var breakBtn = document.getElementById('break-btn');
+            var placeBtn = document.getElementById('place-btn');
+            var jumpBtn = document.getElementById('jump-btn');
+            var flyBtn = document.getElementById('fly-btn');
+            
+            if (breakBtn) breakBtn.addEventListener('touchstart', function(e) { e.preventDefault(); breakBlock(); });
+            if (placeBtn) placeBtn.addEventListener('touchstart', function(e) { e.preventDefault(); placeBlock(); });
+            if (jumpBtn) {
+                jumpBtn.addEventListener('touchstart', function(e) { e.preventDefault(); keys.jump = true; });
+                jumpBtn.addEventListener('touchend', function(e) { keys.jump = false; });
+            }
+            if (flyBtn) flyBtn.addEventListener('touchstart', function(e) { e.preventDefault(); isFlying = !isFlying; velocity.y = 0; });
+        }
+        
+        // ==================== 初期化 ====================
+        function init() {
+            var loadingProgress = document.getElementById('loading-progress');
+            var loadingText = document.getElementById('loading-text');
+            
+            function setProgress(progress, text) {
+                loadingProgress.style.width = (progress * 100) + '%';
+                if (text) loadingText.textContent = text;
+            }
+            
+            // Three.js初期化
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB);
+            scene.fog = new THREE.Fog(0x87CEEB, 15, 30);
+            
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 35);
+            
+            renderer = new THREE.WebGLRenderer({ antialias: false });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            document.getElementById('game-container').appendChild(renderer.domElement);
+            
+            var ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            
+            var directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(50, 100, 50);
+            scene.add(directionalLight);
+            
+            setProgress(0.05, 'ノイズ初期化中...');
+            initNoise();
+            
+            setTimeout(function() {
+                setProgress(0.1, 'テクスチャ生成中...');
+                initTextures();
+                initMaterials();
+                
+                setTimeout(function() {
+                    setProgress(0.15, '地形生成中...');
+                    generateTerrain(setProgress);
+                    
+                    setTimeout(function() {
+                        setProgress(0.45, '木を生成中...');
+                        generateTrees(setProgress);
+                        
+                        setTimeout(function() {
+                            setProgress(0.65, '植物を生成中...');
+                            generateVegetation(setProgress);
+                            
+                            setTimeout(function() {
+                                setProgress(0.72, '構造物を生成中...');
+                                generateStructures(setProgress);
+                                
+                                setTimeout(function() {
+                                    setProgress(0.78, 'メッシュ構築中...');
+                                    updateVisibleBlocks(setProgress);
+                                    
+                                    setTimeout(function() {
+                                        setProgress(0.96, 'Mob配置中...');
+                                        spawnMobs();
+                                        
+                                        // 安全なスポーン地点を探す
+                                        var spawnX = WORLD_SIZE_X / 2;
+                                        var spawnZ = WORLD_SIZE_Z / 2;
+                                        var spawnY = findSafeSpawnY(spawnX, spawnZ);
+                                        
+                                        // もし安全な場所が見つからなければ、周囲を探す
+                                        if (spawnY < 0) {
+                                            for (var r = 1; r < 20; r++) {
+                                                for (var angle = 0; angle < 8; angle++) {
+                                                    var testX = Math.floor(spawnX + Math.cos(angle * Math.PI / 4) * r * 3);
+                                                    var testZ = Math.floor(spawnZ + Math.sin(angle * Math.PI / 4) * r * 3);
+                                                    testX = Math.max(5, Math.min(WORLD_SIZE_X - 5, testX));
+                                                    testZ = Math.max(5, Math.min(WORLD_SIZE_Z - 5, testZ));
+                                                    var testY = findSafeSpawnY(testX, testZ);
+                                                    if (testY > 0) {
+                                                        spawnX = testX;
+                                                        spawnZ = testZ;
+                                                        spawnY = testY;
+                                                        break;
+                                                    }
+                                                }
+                                                if (spawnY > 0) break;
+                                            }
+                                        }
+                                        
+                                        // 最終的なフォールバック
+                                        if (spawnY < 0) {
+                                            spawnY = GROUND_LEVEL + 10;
+                                        }
+                                        
+                                        camera.position.set(spawnX, spawnY, spawnZ);
+                                        
+                                        // 安全のため飛行モードで開始
+                                        isFlying = true;
+                                        
+                                        initHotbar();
+                                        initControls();
+                                        initAudio();
+                                        
+                                        setProgress(1, '完了！');
+                                        
+                                        setTimeout(function() {
+                                            document.getElementById('loading').style.display = 'none';
+                                            animate();
+                                        }, 500);
+                                    }, 50);
+                                }, 50);
+                            }, 50);
+                        }, 50);
+                    }, 50);
+                }, 50);
+            }, 50);
+            
+            window.addEventListener('resize', function() {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        }
+        
+        window.startGame = function() {
+            isPlaying = true;
+            document.getElementById('instructions').style.display = 'none';
+            
+            if (!isMobile) {
+                renderer.domElement.requestPointerLock();
+            }
+            
+            if (audioContext && audioContext.state === 'suspended') {
+                audioContext.resume();
+            }
+        };
+        
+        document.getElementById('start-btn').onclick = window.startGame;
+        
+        // ==================== ゲームループ ====================
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            var now = performance.now();
+            var delta = Math.min((now - lastTime) / 1000, 0.1);
+            lastTime = now;
+            
+            frameCount++;
+            if (frameCount % 30 === 0) {
+                fps = Math.round(1 / delta);
+                document.getElementById('fps').textContent = fps;
+            }
+            
+            if (isPlaying) {
+                updatePlayer(delta);
+            }
+            
+            for (var i = 0; i < mobs.length; i++) {
+                mobs[i].update(delta);
+            }
+            
+            for (var i = particles.length - 1; i >= 0; i--) {
+                if (!particles[i].update(delta)) {
+                    particles[i].destroy();
+                    particles.splice(i, 1);
+                }
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        // 起動
+        init();
+    })();
+    </script>
+</body>
+</html>
